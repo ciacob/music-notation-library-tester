@@ -1,0 +1,168 @@
+<?xml version="1.0"?>
+<s:WindowedApplication
+        xmlns:fx="http://ns.adobe.com/mxml/2009"
+        xmlns:s="library://ns.adobe.com/flex/spark"
+        width="1280" height="800"
+        updateComplete="_onInitialize()">
+    <fx:Script>
+        <![CDATA[
+        import eu.claudius.iacob.constants.ClefTypes;
+        import eu.claudius.iacob.constants.Keys;
+        import eu.claudius.iacob.draw2D.BaseDrawingTools;
+        import eu.claudius.iacob.music.writer.ScoreWriter;
+
+        private function _onInitialize():void {
+            trace('stage is:', stage);
+            if (stage) {
+                _doTests();
+            } else {
+                addEventListener(Event.ADDED_TO_STAGE, function (...ignore) : void {
+                    _doTests();
+                });
+            }
+        }
+
+        private function _doTests():void {
+
+            var graphics : Graphics = canvas.graphics;
+
+            // TEST: draw a staff.
+            // Call the drawLines function with sample parameters
+            var numLines:uint = 5;
+            var width:Number = 1200;
+            var color:uint = 0xFF0000; // Red color
+            var thickness:uint = 3;
+            var interstice:uint = 60;
+            var anchor:Point = new Point(50, 100);
+            var linesResult:Object = BaseDrawingTools.drawStaffLines(canvas, numLines, width, anchor, color, thickness, interstice);
+
+            // Visualize the resulting geometry
+            var staffBounds:Rectangle = (linesResult.bounds as Rectangle);
+            graphics.lineStyle(1, 0x0000FF);
+            graphics.drawRect(staffBounds.x, staffBounds.y, staffBounds.width, staffBounds.height);
+
+            // Draw dots with numbers to visualize the positions
+            var p:Array = linesResult.intrinsicPositions.concat();
+            p.unshift(linesResult.underPosition);
+            p.push(linesResult.overPosition);
+            var _t:TextField;
+            var tf:TextFormat = new TextFormat('Arial', 12, 0x0000ff, true);
+            for (var i:int = 0; i < p.length; i++) {
+                var position:Number = (p[i] as Number);
+                graphics.drawRect(staffBounds.x, position - 1, 2, 2);
+                _t = new TextField();
+                _t.type = TextFieldType.DYNAMIC;
+                _t.autoSize = TextFieldAutoSize.CENTER;
+                _t.thickness = 600;
+                _t.defaultTextFormat = tf;
+                _t.border = true;
+                _t.text = ('' + i);
+                canvas.addChild(_t);
+                _t.x = (staffBounds.x - 15);
+                _t.y = position - _t.height / 2;
+            }
+
+            // TEST: place custom graphic
+            var clefInfo:Object = BaseDrawingTools.placeTrebleClef(canvas, staffBounds.left, linesResult.intrinsicPositions[3], linesResult.step);
+            var clefBounds:Rectangle = clefInfo.bounds;
+            graphics.lineStyle(2, 0x00ff00);
+            graphics.drawRect(clefBounds.x, clefBounds.y, clefBounds.width, clefBounds.height);
+
+            // TEST: draw sharp sign on G pitch
+            var sharpInfo:Object = BaseDrawingTools.placeSharp(canvas, clefBounds.right + 10,
+                    linesResult.intrinsicPositions[3], linesResult.step);
+            var sharpBounds:Rectangle = sharpInfo.bounds;
+            graphics.lineStyle(2, 0xff33ff);
+            graphics.drawRect(sharpBounds.x, sharpBounds.y, sharpBounds.width, sharpBounds.height);
+
+            // TEST: draw natural sign on G pitch
+            var naturalInfo:Object = BaseDrawingTools.placeNatural(canvas, sharpBounds.right + 10, linesResult.intrinsicPositions[3], linesResult.step);
+            var naturalBounds:Rectangle = naturalInfo.bounds;
+            graphics.lineStyle(2, 0x3366ff);
+            graphics.drawRect(naturalBounds.x, naturalBounds.y, naturalBounds.width, naturalBounds.height);
+
+            // TEST: draw flat on G pitch
+            var flatInfo:Object = BaseDrawingTools.placeFlat(canvas, naturalBounds.right + 10, linesResult.intrinsicPositions[3], linesResult.step);
+            var flatBounds:Rectangle = flatInfo.bounds;
+            graphics.lineStyle(2, 0xff6633);
+            graphics.drawRect(flatBounds.x, flatBounds.y, flatBounds.width, flatBounds.height);
+
+            // TEST: draw bass clef on F pitch (2nd staff line from top)
+            var bassClefInfo:Object = BaseDrawingTools.placeBassClef(canvas, flatBounds.right + 10, linesResult.intrinsicPositions[7], linesResult.step);
+            var bassBounds:Rectangle = bassClefInfo.bounds;
+            graphics.lineStyle(2, 0x3366ff);
+            graphics.drawRect(bassBounds.x, bassBounds.y, bassBounds.width, bassBounds.height);
+
+            // TEST: draw shape notehead on F pitch
+            var noteHeadInfo:Object = BaseDrawingTools.placeFullNotehead(canvas, bassBounds.right + 10,
+                    linesResult.intrinsicPositions[7], linesResult.step);
+            var noteheadBounds:Rectangle = noteHeadInfo.bounds;
+            graphics.drawRect(noteheadBounds.x, noteheadBounds.y, noteheadBounds.width, noteheadBounds.height);
+
+            // TEST: draw shape notehead on E pitch
+            noteHeadInfo = BaseDrawingTools.placeFullNotehead(canvas, noteheadBounds.right + 10,
+                    linesResult.intrinsicPositions[6], linesResult.step);
+            noteheadBounds = noteHeadInfo.bounds;
+            graphics.drawRect(noteheadBounds.x, noteheadBounds.y, noteheadBounds.width, noteheadBounds.height);
+
+            // TEST: draw shape notehead on G pitch
+            noteHeadInfo = BaseDrawingTools.placeFullNotehead(canvas, noteheadBounds.right + 10,
+                    linesResult.intrinsicPositions[8], linesResult.step);
+            noteheadBounds = noteHeadInfo.bounds;
+            graphics.drawRect(noteheadBounds.x, noteheadBounds.y, noteheadBounds.width, noteheadBounds.height);
+
+            // TEST: draw shape notehead on A pitch
+            noteHeadInfo = BaseDrawingTools.placeFullNotehead(canvas, noteheadBounds.right + 10,
+                    linesResult.intrinsicPositions[9], linesResult.step);
+            noteheadBounds = noteHeadInfo.bounds;
+            graphics.drawRect(noteheadBounds.x, noteheadBounds.y, noteheadBounds.width, noteheadBounds.height);
+
+
+            // ========================
+            // TESTING THE SCORE WRITER
+            // ========================
+            // Prepare the canvas
+            var swCanvas:Sprite = new Sprite();
+            var swg:Graphics = swCanvas.graphics;
+            var swgY:Number = Math.max(
+                    staffBounds.bottom,
+                    p[0],
+                    clefBounds.bottom
+            ) + 20;
+            swg.lineStyle(2, 0x0033ff);
+            var swW:Number = 1278;
+            var swH:Number = (800 - swgY - 2);
+            swg.drawRect(0, 0, swW, swH);
+            canvas.addChild(swCanvas);
+            swCanvas.y = swgY;
+
+            //----
+            var settings:Object = {};
+            settings[Keys.HORIZONTAL_PADDING] = 10;
+            settings[Keys.INNER_CLUSTER_PADDING] = 5;
+            var writer:ScoreWriter = new ScoreWriter(swCanvas, settings);
+            writer
+                    .putStaff(swW - 40, 20, 100)
+                    .putClef(ClefTypes.TREBLE)
+                    .putCluster(null, new <uint>[58, 59, 60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84])
+                    .putClef(ClefTypes.BASS)
+                    .putCluster(null, new <uint>[60])
+                    .putCluster(null, new <uint>[64])
+                    .putClef(ClefTypes.TREBLE)
+                    .putCluster(null, new <uint>[67])
+                    .putCluster(null, new <uint>[60, 64, 68])
+                    .putCluster(null, new <uint>[61, 64, 68, 73, 75])
+                    .putCluster(null, new <uint>[60, 60])
+                    .putCluster(null, new <uint>[68])
+                    .putCluster(null, new <uint>[68, 73, 75])
+                    .putCluster(null, new <uint>[60, 61])
+                    .putCluster(null, new <uint>[67, 68])
+                    .putCluster(null, new <uint>[67, 68, 72, 73]);
+
+            writer.write();
+        }
+        ]]>
+    </fx:Script>
+
+    <s:SpriteVisualElement width="100%" height="100%" id="canvas" />
+</s:WindowedApplication>
